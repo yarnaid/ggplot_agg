@@ -15,6 +15,9 @@ data <- diamonds
 points_fill <- I("darkorchid1")
 alpha = 0.1
 
+image_ext <- '.png'
+data_ext <- '.csv'
+
 plotType <- function(shape=1, type, binwidth=5, pch=21, alpha=0.1) {
   switch(type,
          sp = geom_point(shape=shape, pch = pch),
@@ -25,7 +28,7 @@ plotType <- function(shape=1, type, binwidth=5, pch=21, alpha=0.1) {
 
 shinyServer(function(input, output) {
   input_data <- reactive({
-    data[, c(input$column_x, input$column_y, input$column_facet, input$column_color, 'color')]
+    data[, c(input$x, input$y, input$column_facet, input$color)]
     })
   
   output$table_view <- renderDataTable({
@@ -33,44 +36,66 @@ shinyServer(function(input, output) {
   })
   
   
-  output$main_plot <- renderPlot({
-    res <- ggplot(data, aes_string(x=input$column_x), environment = environment())
+  plot_input <- reactive({
+    res <- ggplot(data, aes(get(x=input$x)), environment = environment())
     if (input$plot_type == "hp") {
-      x <- input_data()[input$column_x]
+      x <- input_data()[input$x]
       binwidth <- diff(range(x)) / input$bins
       res <- res + geom_histogram(binwidth=binwidth)
     } else {
-      res <- res + plotType(type=input$plot_type) + aes_string(y=input$column_y)
+      res <- res + aes_string(y=input$y) + geom_point()
     }
     
     if (input$facet_grid == TRUE) {
-      f <- as.formula(paste(input$column_facet, '~ .'))
+      f <- as.formula(paste(input$facet, '.', sep = ' ~ '))
       res <- res + facet_grid(f)
     }
     
     if (input$coloring == TRUE) {
-      res <- res + aes(color=factor(get(input$column_color)))
+      res <- res + aes(color=factor(get(input$color)))
     }
+
+    if (input$shaping == TRUE) {
+      res <- res + aes(shape=factor(get(input$shape)))
+    }
+    
     
     if (FALSE) {
       res <- res + geom_jitter(alpha = alpha)
     }
-    
-    print(res)
-    })
+    res
+  })
+  
+  output$main_plot <- renderPlot({
+    print(plot_input())
+  })
+  
+  output$save_plot <- downloadHandler(
+    filename = function() {
+      if (!grepl(image_ext, input$file_name)) {
+        res <- paste(input$file_name, image_ext, sep='')
+      } else {
+        res <- input$file_name
+      }
+      res
+    },
+    content = function(file) {
+      png(file)
+      print(plot_input())
+      dev.off()
   })
 
-# shinyServer(function(input, output) {
-# 
-#   output$distPlot <- renderPlot({
-# 
-#     # generate bins based on input$bins from ui.R
-#     x    <- faithful[, 2]
-#     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-# 
-#     # draw the histogram with the specified number of bins
-#     hist(x, breaks = bins, col = 'darkgray', border = 'white')
-# 
-#   })
-# 
-# })
+  output$save_data <- downloadHandler(
+    filename = function() {
+      if (!grepl(data_ext, input$file_name)) {
+        res <- paste(input$file_name, data_ext, sep='')
+      } else {
+        res <- input$file_name
+      }
+      res
+    },
+  content = function(file) {
+    write.csv(data ,file)
+  }
+  )
+})

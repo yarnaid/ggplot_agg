@@ -21,12 +21,28 @@ plot_width <- 9
 full_width <- 12
 plot_height <- 600
 side_bar <- TRUE
+selected_x <- 'x'
+selected_y <- 'y'
+default_bins <- 30
+selected_grid <- 'cut'
+selected_color <- 'color'
+selected_shape <- 'cut'
+
 
 dashboard_sidebar <- dashboardSidebar(
   disable = !side_bar,
   sidebarMenu(
     menuItem("Main", tabName="main"),
     menuItem("Data Table", tabName="data_table")
+  ),
+  fluidRow(
+    box(
+      class = 'text-center',
+      textInput('file_name', 'Download file name', value='plot'),
+      downloadButton('save_plot', 'png'),
+      downloadButton('save_data', 'csv'),
+      width = 12
+    )
   )
 )
 
@@ -39,30 +55,42 @@ main_controls_box <- box(
     list("sp", "hp")
   ),
   selectInput(
-    "column_x",
+    "x",
     "X values",
     cols,
+    selected = selected_x
     #         inline = TRUE
   ),
   selectInput(
-    "column_y",
+    "y",
     "Y values",
     cols,
+    selected = selected_y
     #         inline = TRUE
   ),
-  numericInput('bins', 'Histogram bins', 30, min = 1),
+  numericInput('bins', 'Histogram bins', default_bins, min = 1),
   checkboxInput('facet_grid', 'Facet grid'),
   selectInput(
-    "column_facet",
+    "facet",
     "Facet grid",
     cols,
+    selected = selected_grid
     #         inline = TRUE
   ),
   checkboxInput('coloring', 'Color'),
   selectInput(
-    "column_color",
+    "color",
     "Colors for",
     cols,
+    selected = selected_color
+    #         inline = TRUE
+  ),
+  checkboxInput('shaping', 'Shaping'),
+  selectInput(
+    "shape",
+    "Shapes for",
+    cols,
+    selected = selected_shape
     #         inline = TRUE
   )
 )
@@ -77,7 +105,7 @@ main_tab_item <- tabItem(
 
 data_table_tab_item <- tabItem(
   tabName = 'data_table',
-  h2('Data'),
+  h2('Diamonds Data'),
   fluidRow(
     box(dataTableOutput('table_view'), width=12)
   )
@@ -96,25 +124,3 @@ ui <- dashboardPage(
   dashboard_sidebar,
   dashboard_body
 )
-
-# shinyUI(fluidPage(
-# 
-#   # Application title
-#   titlePanel("Old Faithful Geyser Data"),
-# 
-#   # Sidebar with a slider input for number of bins
-#   sidebarLayout(
-#     sidebarPanel(
-#       sliderInput("bins",
-#                   "Number of bins:",
-#                   min = 1,
-#                   max = 50,
-#                   value = 30)
-#     ),
-# 
-#     # Show a plot of the generated distribution
-#     mainPanel(
-#       plotOutput("distPlot")
-#     )
-#   )
-# ))
