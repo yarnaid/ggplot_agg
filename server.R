@@ -28,26 +28,33 @@ plotType <- function(shape=1, type, binwidth=5, pch=21, alpha=0.1) {
 
 shinyServer(function(input, output) {
   input_data <- reactive({
-    data[, c(input$x, input$y, input$column_facet, input$color)]
+    data[, c(input$x, input$y, input$facet, input$color)]
     })
   
   output$table_view <- renderDataTable({
     data
   })
-  
+
+  bin_width <- reactive({
+    x <- input_data()[input$x]
+    binwidth <- diff(range(x)) / input$bins
+  })
   
   plot_input <- reactive({
-    res <- ggplot(data, aes(get(x=input$x)), environment = environment())
+    res <- ggplot(data, aes_string(x=input$x), environment = environment())
     if (input$plot_type == "hp") {
-      x <- input_data()[input$x]
-      binwidth <- diff(range(x)) / input$bins
-      res <- res + geom_histogram(binwidth=binwidth)
-    } else {
+      res <- res + geom_histogram(binwidth=bin_width())
+    } else if(input$plot_type == "sp") {
       res <- res + aes_string(y=input$y) + geom_point()
+    } else if(input$plot_type == "tp") {
+      res <- res + aes_string(y=input$y) + geom_line() # + xlab("") + ylab("Daily Views")
     }
+
+
     
     if (input$facet_grid == TRUE) {
-      f <- as.formula(paste(input$facet, '.', sep = ' ~ '))
+
+      f <- as.formula(paste(input$facet, input$facet2, sep = ' ~ '))
       res <- res + facet_grid(f)
     }
     
@@ -60,7 +67,7 @@ shinyServer(function(input, output) {
     }
     
     
-    if (FALSE) {
+    if (input$jitter) {
       res <- res + geom_jitter(alpha = alpha)
     }
     res

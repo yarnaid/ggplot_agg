@@ -17,7 +17,7 @@ library(ggplot2)
 # data <- WDI(extra = TRUE, country = c("US","CA","MX"))
 data <- diamonds
 cols <- c(colnames(data))
-plot_width <- 9
+plot_width <- 10
 full_width <- 12
 plot_height <- 600
 side_bar <- TRUE
@@ -31,10 +31,25 @@ selected_shape <- 'cut'
 
 dashboard_sidebar <- dashboardSidebar(
   disable = !side_bar,
+  tags$h3('Menu'),
   sidebarMenu(
     menuItem("Main", tabName="main"),
-    menuItem("Data Table", tabName="data_table")
-  ),
+    menuItem("Data Table", tabName="data_table"),
+    menuItem("Aggregation", tabName="aggregation")
+    ),
+  fluidRow(
+    box(
+      class = 'text-center',
+      radioButtons(
+        "x",
+        "X value",
+        cols,
+        selected = selected_x,
+        inline = TRUE
+        ),
+      width = 12
+      )
+    ),
   fluidRow(
     box(
       class = 'text-center',
@@ -42,9 +57,17 @@ dashboard_sidebar <- dashboardSidebar(
       downloadButton('save_plot', 'png'),
       downloadButton('save_data', 'csv'),
       width = 12
+      )
+    ),
+  fluidRow(
+    box(
+      class = 'text-center',
+      textInput('start', 'Start X value'),
+      textInput('end', 'End X end'),
+      width = 12
+      )
     )
   )
-)
 
 main_controls_box <- box(
   title = "Controls",
@@ -52,31 +75,32 @@ main_controls_box <- box(
   selectInput(
     "plot_type",
     "Plot Type",
-    list("sp", "hp")
-  ),
-  selectInput(
-    "x",
-    "X values",
-    cols,
-    selected = selected_x
-    #         inline = TRUE
-  ),
-  selectInput(
+    list("sp", "hp", "tp")
+    ),
+  radioButtons(
     "y",
     "Y values",
     cols,
-    selected = selected_y
-    #         inline = TRUE
-  ),
+    selected = selected_y,
+            inline = TRUE
+    ),
+  checkboxInput('jitter', 'Use jitter'),
   numericInput('bins', 'Histogram bins', default_bins, min = 1),
   checkboxInput('facet_grid', 'Facet grid'),
   selectInput(
     "facet",
     "Facet grid",
-    cols,
+    c(cols, '.'),
     selected = selected_grid
     #         inline = TRUE
-  ),
+    ),
+  selectInput(
+    "facet2",
+    "Facet grid(second variable)",
+    c(cols, '.'),
+    selected = '.'
+    #         inline = TRUE
+    ),
   checkboxInput('coloring', 'Color'),
   selectInput(
     "color",
@@ -84,7 +108,7 @@ main_controls_box <- box(
     cols,
     selected = selected_color
     #         inline = TRUE
-  ),
+    ),
   checkboxInput('shaping', 'Shaping'),
   selectInput(
     "shape",
@@ -92,35 +116,49 @@ main_controls_box <- box(
     cols,
     selected = selected_shape
     #         inline = TRUE
+    )
   )
-)
 
 main_tab_item <- tabItem(
   tabName = 'main',
   fluidRow(
     box(plotOutput("main_plot", height = plot_height), width = plot_width),
     main_controls_box
+    )
   )
-)
 
 data_table_tab_item <- tabItem(
   tabName = 'data_table',
   h2('Diamonds Data'),
   fluidRow(
     box(dataTableOutput('table_view'), width=12)
+    )
   )
-)
+
+aggregation_tab_item <- tabItem(
+  tabName = 'aggregation',
+  h2('Aggregation'),
+  fluidRow(
+    box(
+      title = 'Controls'
+      ),
+    box(
+      title = 'Values'
+      )
+    )
+  )
 
 dashboard_body <- dashboardBody(
   tabItems(
     main_tab_item,
-    data_table_tab_item
+    data_table_tab_item,
+    aggregation_tab_item
+    )
   )
-)
 
 
 ui <- dashboardPage(
   dashboardHeader(title = "ggplot"),
   dashboard_sidebar,
   dashboard_body
-)
+  )
