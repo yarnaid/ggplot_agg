@@ -5,22 +5,19 @@
 # http://shiny.rstudio.com
 #
 
-require(ggplot2)
-require(shinydashboard)
-
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
 
+#  FIX: update only on value of color or shape changed like in facet grid...
+
 # library(WDI)
 
 # data <- WDI(extra = TRUE, country = c("US","CA","MX"))
-data <- diamonds
-cols <- c(colnames(data))
+side_bar <- TRUE
 plot_width <- 10
 full_width <- 12
 plot_height <- 600
-side_bar <- TRUE
 selected_x <- 'x'
 selected_y <- 'y'
 default_bins <- 30
@@ -32,11 +29,15 @@ selected_shape <- 'cut'
 dashboard_sidebar <- dashboardSidebar(
   disable = !side_bar,
   tags$h3('Menu'),
+  fileInput('file1', 'Choose CSV File',
+            accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+  tags$hr(),
   sidebarMenu(
     menuItem("Main", tabName="main"),
     menuItem("Data Table", tabName="data_table"),
     menuItem("Aggregation", tabName="aggregation")
     ),
+  tags$hr(),
   fluidRow(
     box(
       class = 'text-center',
@@ -62,8 +63,7 @@ dashboard_sidebar <- dashboardSidebar(
   fluidRow(
     box(
       class = 'text-center',
-      textInput('start', 'Start X value'),
-      textInput('end', 'End X end'),
+      sliderInput('x_range', 'X range', min = 0, max = 100, value = c(0, 100)),
       width = 12
       )
     )
