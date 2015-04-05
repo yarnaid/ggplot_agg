@@ -11,41 +11,111 @@ library(shiny)
 library(ggplot2)
 library(ggvis)
 
-# data <- WDI(extra = TRUE, country = c("US","CA","MX"))
-data <- diamonds
-points_fill <- I("darkorchid1")
-alpha = 0.1
+no_aggr <- c('color', 'cut', 'clarity')
+pageLength <- 10
 
-image_ext <- '.png'
-data_ext <- '.csv'
 
 plotType <- function(shape=1, type, binwidth=5, pch=21, alpha=0.1) {
   switch(type,
-         sp = geom_point(shape=shape, pch = pch),
-         hp = geom_histogram(binwidth=binwidth),
+   sp = geom_point(shape=shape, pch = pch),
+   hp = geom_histogram(binwidth=binwidth),
 #          p = pie()
-         )
+   )
 }
 
 shinyServer(function(input, output, session) {
 
   observe({
+    data <- update_data()
     x_range <- range(data[input$x])
     step_range <- diff(x_range) / 100
     updateSliderInput(session, 'x_range', min = x_range[1], max = x_range[2], step = step_range)
-
   })
+
+  update_data <- reactive({
+    in_file <- input$file1
+    if (is.null(in_file))
+      return(data)
+    data <- data.frame(read.csv(in_file$datapath))
+
+    cols <- c(colnames(data))
+    updateRadioButtons(session, 'x', choices = cols, selected = input$x, inline = TRUE)
+
+    data
+  })
+
+  grouping_choised <- function(id, label, selected)(
+  checkboxGroupInput(id, label = h3(label),
+    choices = cols,
+    selected = selected
+    # inline = TRUE
+    )
+  )
+
+  output$aggr_group <- renderUI({
+    grouping_choised('group_by', 'Group by', 'color')
+  })
+
+  output$aggr_over <- renderUI({
+    grouping_choised('group_over', 'Calculate over', 'x')
+  })
+
 
   input_data <- reactive({
     x_min <- data[input$x] >= input$x_range[1]
     x_max <- data[input$x] <= input$x_range[2]
     slice <- x_min&x_max
     res <- data[slice, c(input$x, input$y, input$facet, input$color, input$shape)]
-    })
+  })
+
+  aggr_data <- reactive({
+    x_min <- data[input$x] >= input$x_range[1]
+    x_max <- data[input$x] <= input$x_range[2]
+    slice <- x_min&x_max
+    res <- data[slice,]
+  })
 
   output$table_view <- renderDataTable({
-    data
+    input_data()
   })
+
+  aggr_function <- function(FUN) {
+    if (!input$over_all) {
+    over <- paste(input$group_over, collapse = ' + ')
+    } else {
+      over <- '.'
+    }
+    if (!input$group_all) {
+    by <- paste(input$group_by, collapse = ' + ')
+    } else {
+      by <- '.'
+    }
+    f <- as.formula(paste(over, by, sep=' ~ '))
+    summaryBy(f, data=aggr_data(), FUN=FUN)
+  }
+
+  output$sum_table <- renderDataTable(
+    aggr_function(sum),
+    options = list (
+      pageLength = pageLength
+      )
+    )
+
+  output$length_table <- renderDataTable(
+    aggr_function(length),
+    options = list (
+      pageLength = pageLength
+      )
+    )
+
+  output$mean_table <- renderDataTable(
+    aggr_function(mean),
+    options = list (
+      pageLength = pageLength
+      )
+    )
+
+
 
   bin_width <- reactive({
     x <- input_data()[input$x]
@@ -103,7 +173,7 @@ shinyServer(function(input, output, session) {
       png(file)
       print(plot_input())
       dev.off()
-  })
+    })
 
   output$save_data <- downloadHandler(
     filename = function() {
@@ -114,8 +184,8 @@ shinyServer(function(input, output, session) {
       }
       res
     },
-  content = function(file) {
-    write.csv(data ,file)
-  }
-  )
+    content = function(file) {
+      write.csv(data ,file)
+    }
+    )
 })
