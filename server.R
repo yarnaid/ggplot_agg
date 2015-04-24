@@ -231,6 +231,9 @@ shinyServer(function(input, output, session) {
         res <- res + geom_histogram(binwidth=bin_width())
       } else if(input$plot_type == "sp") {
         res <- res + aes_string(y=input$y) + geom_point(na.rm=TRUE)
+        if (input$jitter) {
+          res <- res + geom_jitter(alpha = alpha)
+        }
       } else if(input$plot_type == "tp") {
         res <- res + aes_string(y=input$y) + geom_line()
       }
@@ -246,11 +249,7 @@ shinyServer(function(input, output, session) {
       if (input$shaping == TRUE) {
         res <- res + aes(shape=factor(get(input$shape)))
       }
-      
-      if (input$jitter) {
-        res <- res + geom_jitter(alpha = alpha)
-      }
-      
+            
       res
     }
   })

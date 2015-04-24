@@ -87,7 +87,7 @@ main_controls_box <- box(
     )
   ),
   conditionalPanel(
-    condition = 'input.plot_type != "hp"',
+    condition = 'input.plot_type == "sp"',
     checkboxInput('jitter', 'Use jitter')
   ),
   conditionalPanel(

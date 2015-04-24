@@ -4,6 +4,8 @@ require(shinydashboard)
 require(shinythemes)
 require(nycflights13)
 require(gtools)
+require(ggvis)
+require(sqldf)
 
 library(ggplot2)
 # library(doBy)
