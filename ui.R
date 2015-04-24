@@ -40,6 +40,7 @@ dashboard_sidebar <- dashboardSidebar(
   fluidRow(
     box(
       class = 'text-center',
+      style = 'color:black',
       radioButtons(
         "x",
         "X value",
@@ -53,6 +54,7 @@ dashboard_sidebar <- dashboardSidebar(
   fluidRow(
     box(
       class = 'text-center',
+      style = 'color:black',
       sliderInput('x_range', 'X range', min = 0, max = 100, value = c(0, 100)),
       width = 12
     )
@@ -60,6 +62,7 @@ dashboard_sidebar <- dashboardSidebar(
   fluidRow(
     box(
       class = 'text-center',
+      style = 'color:black',
       textInput('file_name', 'Download file name', value='plot'),
       downloadButton('save_plot', 'png'),
       downloadButton('save_data', 'csv'),
