@@ -24,6 +24,7 @@ ready_to_plot <- FALSE
 
 image_ext <- '.png'
 data_ext <- '.csv'
+jpeg_ext <- '.jpeg'
 
 factor_names <- c()
 number_names <- c()

@@ -1,23 +1,12 @@
-
-# This is the user-interface definition of a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
-
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
-
-#  FIX: update only on value of color or shape changed like in facet grid...
 
 side_bar <- TRUE
 plot_width <- 10
 agr_control_width <- 3
 full_width <- 12
 plot_height <- 600
-# selected_x <- number_names[1]
-# selected_y <- number_names[2]
 default_bins <- 30
 selected_grid <- factor_names[1]
 selected_color <- factor_names[1]
@@ -33,8 +22,8 @@ dashboard_sidebar <- dashboardSidebar(
   fileInput('file1', 'Choose CSV File',
             accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
   sidebarMenu(
-    menuItem("Plot", icon = icon("line-chart"), tabName="main"),
     menuItem("Aggregation", icon = icon("table"), tabName="aggregation"),
+    menuItem("Plot", icon = icon("line-chart"), tabName="main"),
     menuItem("Data Table", icon = icon("table"), tabName="data_table")
   ),
   fluidRow(
@@ -65,7 +54,9 @@ dashboard_sidebar <- dashboardSidebar(
       style = 'color:black',
       textInput('file_name', 'Download file name', value='plot'),
       downloadButton('save_plot', 'png'),
+      downloadButton('save_plot_jpeg', 'jpeg'),
       downloadButton('save_data', 'csv'),
+      downloadButton('save_aggr_data', 'csv(aggr)'),
       width = 12
     )
   )
@@ -74,6 +65,12 @@ dashboard_sidebar <- dashboardSidebar(
 main_controls_box <- box(
   title = "Controls",
   width = full_width - plot_width,
+  checkboxInput('auto_update', 'Auto update plot', value=FALSE),
+  conditionalPanel(
+    condition = 'input.auto_update != true',
+    actionButton('redraw', 'Update', icon('refrash'))
+  ),
+  checkboxInput('plot_aggr', 'Use aggregated data'),
   selectInput(
     "plot_type",
     "Plot Type",
@@ -176,17 +173,9 @@ aggregation_tab_item <- tabItem(
   h2('Aggregation'),
   fluidRow( aggr_controls_box,
             box(
-              #                 title = 'Aggeration',
               width = full_width - agr_control_width,
               wellPanel(dataTableOutput('sum_table'))
             )
-            #     tabBox(
-            #       title = 'Values',
-            #       tabPanel('Sum Panel', dataTableOutput('sum_table')),
-            #       tabPanel('Count Panel', dataTableOutput('length_table')),
-            #       tabPanel('Mean Panel', dataTableOutput('mean_table')),
-            #       width = full_width - agr_control_width
-            #       )
   )
 )
 

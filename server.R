@@ -1,9 +1,3 @@
-
-# This is the server logic for a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
-#
 require(ggplot2)
 require(ggvis)
 require(shinythemes)
@@ -19,20 +13,28 @@ pageLength <- 10
 
 shinyServer(function(input, output, session) {
   update_ui <- reactive({
-    #     browser()
     input$input_data
     input$file1
+    input$plot_aggr
     ui_ready <<- FALSE
-    cols <<- c(colnames(data))
+    if (!input$plot_aggr) {
+      updated_data <<- data
+    } else {
+      tmp <- aggr_function(c('sum', 'avg', 'count'), c('sum', 'mean', 'count'))
+      if (!invalid(tmp)) {
+        updated_data <<- tmp
+      }
+    }
+    cols <<- c(colnames(updated_data))
     factor_names <<- c()
     number_names <<- c()
     for (col in cols) {
-      if (is.factor(data[[col]]))
+      if (is.factor(updated_data[[col]]))
       {
         factor_names <<- c(factor_names, col)
-      } else if (is.character(data[[col]])) {
+      } else if (is.character(updated_data[[col]])) {
         factor_names <<- c(factor_names, col)
-        data[[col]] <<- ordered(data[[col]])
+        updated_data[[col]] <<- ordered(updated_data[[col]])
       } else {
         number_names <<- c(number_names, col)
       }
@@ -49,7 +51,6 @@ shinyServer(function(input, output, session) {
   })
   
   get_data <- reactive({
-    #     browser()
     input$file1
     ui_ready <<- FALSE
     if (input$input_data == 'diamonds')
@@ -70,7 +71,6 @@ shinyServer(function(input, output, session) {
   })
   
   observe({
-    #     browser()
     input$input_data
     input$file1
     ready_to_plot <<- FALSE
@@ -81,20 +81,21 @@ shinyServer(function(input, output, session) {
       if (!invalid(input$x)) {
         if (input$x %in% number_names) {
           x <- input$x
-          x_range <- range(data[input$x], na.rm=TRUE)      
+          x_range <- range(updated_data[input$x], na.rm=TRUE)      
         } else {
-          x_range <- range(data[selected_x], na.rm=TRUE)
+          x_range <- range(updated_data[selected_x], na.rm=TRUE)
         }
       } else {
         x_range <- c(0, 0, 0)
       }
-      if (is.na(x_range[1]) || is.na(x_range[2])) {
+      if (invalid(x_range[1]) || invalid(x_range[2]) || is.na(x_range[1]) || is.na(x_range[2]) || is.infinite(x_range[1]) || is.infinite(x_range[2])) {
         x_range[1] <- 0
-        x_range[2] <- 0
+        x_range[2] <- 2
         step_range <- 1
       } else {
         step_range <- diff(x_range) / 100
       }
+#       browser()
       updateSliderInput(session, 'x_range', min = x_range[1], max = x_range[2], step = step_range, value = c(x_range[1], x_range[2]))
       ui_ready <<- TRUE
       ready_to_plot <<- TRUE
@@ -102,7 +103,6 @@ shinyServer(function(input, output, session) {
   })
   
   update_data <- reactive({
-    #     browser()
     ui_ready <<- FALSE
     in_file <<- input$file1
     if (is.null(in_file))
@@ -134,7 +134,6 @@ shinyServer(function(input, output, session) {
   
   
   input_data <- reactive({
-    #     browser()
     input$file1
     lims <- input$x_range
     res <- data.frame(c())
@@ -160,13 +159,10 @@ shinyServer(function(input, output, session) {
   })
   
   aggr_function <- function(FUNs, nms) {
-#     browser()
-#     update_data()
-#     update_ui()
     if (!is.element(input$group_over[1], number_names))
       return()
     input$input_data
-    d <- aggr_data()
+    d <- na.omit(aggr_data())
     over_fs <- ''
     for (i in 1:length(FUNs)) {
       FUN <- FUNs[i]
@@ -195,20 +191,6 @@ shinyServer(function(input, output, session) {
     )
   )
   
-#   output$length_table <- renderDataTable(
-#     aggr_function(length),
-#     options = list (
-#       pageLength = pageLength
-#     )
-#   )
-#   
-#   output$mean_table <- renderDataTable(
-#     aggr_function(mean),
-#     options = list (
-#       pageLength = pageLength
-#     )
-#   )
-  
   bin_width <- reactive({
     x <- input_data()[input$x]
     binwidth <- diff(range(x)) / input$bins
@@ -219,15 +201,13 @@ shinyServer(function(input, output, session) {
   })
   
   plot_input <- reactive({
-    #     browser()
-    d <- input_data()
     input$file1
     x <- input$x
     y <- input$y
+    d <- updated_data
     if (ui_ready&&ready_to_plot&&length(d)>0&&!invalid(d)) {
-      res <- ggplot(input_data(), aes_string(x=input$x), environment = environment())
+      res <- ggplot(d, aes_string(x=input$x), environment = environment())
       if (input$plot_type == "hp") {
-        #         browser()
         res <- res + geom_histogram(binwidth=bin_width())
       } else if(input$plot_type == "sp") {
         res <- res + aes_string(y=input$y) + geom_point(na.rm=TRUE)
@@ -253,10 +233,18 @@ shinyServer(function(input, output, session) {
       res
     }
   })
+
+  redraw <- eventReactive(input$redraw, {
+    print(plot_input())
+  })
   
   output$main_plot <- renderPlot({
     if(ui_ready) {
-      print(plot_input())
+      if (input$auto_update) {
+        print(plot_input())
+      } else {
+        redraw()
+      }
     }
   })
   
@@ -274,7 +262,22 @@ shinyServer(function(input, output, session) {
       print(plot_input())
       dev.off()
     })
-  
+
+output$save_plot_jpeg <- downloadHandler(
+  filename = function() {
+    if (!grepl(jpeg_ext, input$file_name)) {
+      res <- paste(input$file_name, jpeg_ext, sep='')
+    } else {
+      res <- input$file_name
+    }
+    res
+  },
+  content = function(file) {
+    jpeg(file)
+    print(plot_input())
+    dev.off()
+  })
+
   output$save_data <- downloadHandler(
     filename = function() {
       if (!grepl(data_ext, input$file_name)) {
@@ -288,4 +291,18 @@ shinyServer(function(input, output, session) {
       write.csv(data ,file)
     }
   )
+
+output$save_aggr_data <- downloadHandler(
+  filename = function() {
+    if (!grepl(data_ext, input$file_name)) {
+      res <- paste(input$file_name, '_aggr', data_ext, sep='')
+    } else {
+      res <- input$file_name
+    }
+    res
+  },
+  content = function(file) {
+    write.csv(aggr_function(c('sum', 'avg', 'count'), c('sum', 'mean', 'count')) ,file)
+  }
+)  
 })
