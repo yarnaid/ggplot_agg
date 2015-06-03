@@ -13,6 +13,8 @@ library(shinythemes)
 library(nycflights13)
 library(gtools)
 
+options(shiny.maxRequestSize = 10000*1024^2)
+
 data <- data.frame(c(1))
 data_title <- ''
 cols <- c(1)

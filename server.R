@@ -41,8 +41,9 @@ shinyServer(function(input, output, session) {
     }
     selected_x <<- number_names[1]
     selected_y <<- number_names[2]
-    updateRadioButtons(session, 'x', choices = number_names, selected = number_names[1], inline = TRUE)
-    updateRadioButtons(session, 'y', choices = number_names, selected = number_names[2], inline = TRUE)
+    ax = append(number_names, factor_names)
+    updateRadioButtons(session, 'x', choices = ax, selected = number_names[1], inline = TRUE)
+    updateRadioButtons(session, 'y', choices = ax, selected = number_names[2], inline = TRUE)
     updateSelectInput(session, 'facet', choices = c(factor_names, '.'))
     updateSelectInput(session, 'facet2', choices = c(factor_names, '.'))
     updateSelectInput(session, 'color', choices = factor_names)
