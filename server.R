@@ -16,6 +16,7 @@ shinyServer(function(input, output, session) {
     input$input_data
     input$file1
     input$plot_aggr
+    input$agg_function
     ui_ready <<- FALSE
     if (!input$plot_aggr) {
       updated_data <<- data
@@ -24,6 +25,23 @@ shinyServer(function(input, output, session) {
       if (!invalid(tmp)) {
         updated_data <<- tmp
       }
+    }
+    
+    if (input$aggregate) {
+
+
+      updated_data <<- na.omit(aggr_data())
+      # browser()
+
+      over <- paste(sapply(input$color, function(x) {paste(input$agg_function, '(', x, ') ', input$agg_function, '_', x, sep = '')}), collapse = ', ')
+      by <- paste(input$color, collapse=', ')
+      query <- paste('select', by, ', ', over, 'from updated_data group by', by)
+      tmp <- sqldf(query)
+      if (!invalid(tmp)) {
+        updated_data <<- tmp
+      }
+      
+      
     }
     cols <<- c(colnames(updated_data))
     factor_names <<- c()
@@ -47,7 +65,9 @@ shinyServer(function(input, output, session) {
     updateSelectInput(session, 'facet', choices = c(factor_names, '.'))
     updateSelectInput(session, 'facet2', choices = c(factor_names, '.'))
     updateSelectInput(session, 'color', choices = factor_names)
+    updateSelectInput(session, 'wrap', choices = factor_names)
     updateSelectInput(session, 'shape', choices = factor_names)
+    updateSelectInput(session, 'dencity_factor', choices = factor_names)
     ui_ready <<- TRUE
   })
   
@@ -72,6 +92,7 @@ shinyServer(function(input, output, session) {
   })
   
   observe({
+    browser()
     input$input_data
     input$file1
     ready_to_plot <<- FALSE
@@ -200,18 +221,26 @@ shinyServer(function(input, output, session) {
   facet_formula <- reactive({
     f <- as.formula(paste(input$facet, input$facet2, sep = ' ~ '))
   })
+
+  wrap_formula <- reactive({
+    f <- as.formula(paste(input$wrap, input$facet2, sep = ' ~ '))
+  })
   
   plot_input <- reactive({
     input$file1
+    input$alpha_slider
+    input$smooth
     x <- input$x
     y <- input$y
     d <- updated_data
-    if (ui_ready&&ready_to_plot&&length(d)>0&&!invalid(d)) {
+    if (ui_ready && ready_to_plot && length(d) > 0 && !invalid(d)) {
       res <- ggplot(d, aes_string(x=input$x), environment = environment())
-      if (input$plot_type == "hp") {
+      if (input$dencity) {
+        res <- res+ geom_density(aes(y=..density.., color=factor(get(input$dencity_factor))))
+      } else if (input$plot_type == "hp") {
         res <- res + geom_histogram(binwidth=bin_width())
       } else if(input$plot_type == "sp") {
-        res <- res + aes_string(y=input$y) + geom_point(na.rm=TRUE)
+        res <- res + aes_string(y=input$y) + geom_point(na.rm=TRUE, alpha = input$alpha_slider)
         if (input$jitter) {
           res <- res + geom_jitter(alpha = alpha)
         }
@@ -223,6 +252,10 @@ shinyServer(function(input, output, session) {
         res <- res + facet_grid(facet_formula())
       }
       
+      if (input$facet_wrap == TRUE) {
+        res <- res + facet_wrap(wrap_formula())
+      }
+      
       if (input$coloring == TRUE) {
         res <- res + aes(color=factor(get(input$color)))
       }
@@ -230,7 +263,15 @@ shinyServer(function(input, output, session) {
       if (input$shaping == TRUE) {
         res <- res + aes(shape=factor(get(input$shape)))
       }
+      
+      # if (input$dencity == TRUE) {
+        # res <- res + geom_density()
+      # }
             
+      if (input$plot_type != "hp" && input$smooth) {
+        res <- res + stat_smooth()
+      }
+      
       res
     }
   })

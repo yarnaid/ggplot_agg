@@ -11,8 +11,13 @@ default_bins <- 30
 selected_grid <- factor_names[1]
 selected_color <- factor_names[1]
 selected_shape <- factor_names[1]
+selected_wrap <- factor_names[1]
+selected_dencity <- factor_names[1]
 control_style <- 'padding:10px;margin-bottom:10px'
 skin <- 'blue'
+
+aggr_functions <- c('sum', 'avg', 'count')
+
 
 
 dashboard_sidebar <- dashboardSidebar(
@@ -22,8 +27,8 @@ dashboard_sidebar <- dashboardSidebar(
   fileInput('file1', 'Choose CSV File',
             accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
   sidebarMenu(
-    menuItem("Aggregation", icon = icon("table"), tabName="aggregation"),
     menuItem("Plot", icon = icon("line-chart"), tabName="main"),
+    menuItem("Aggregation", icon = icon("table"), tabName="aggregation"),
     menuItem("Data Table", icon = icon("table"), tabName="data_table")
   ),
   fluidRow(
@@ -71,6 +76,12 @@ main_controls_box <- box(
     actionButton('redraw', 'Update', icon('refrash'))
   ),
   checkboxInput('plot_aggr', 'Use aggregated data'),
+  checkboxInput('smooth', 'Smooth'),
+  checkboxInput('aggregate', 'Aggregate'),
+  conditionalPanel(
+    condition = 'input.aggregate == true',
+    selectInput('agg_function', 'Aggregation function', aggr_functions)
+  ),
   selectInput(
     "plot_type",
     "Plot Type",
@@ -122,6 +133,32 @@ main_controls_box <- box(
       selected = selected_color
       #         inline = TRUE
     )
+  ),
+  wellPanel(
+    style = control_style,
+    checkboxInput('facet_wrap', 'Facet wrap'),
+    selectInput(
+      "wrap",
+      "Wrap for",
+      factor_names,
+      selected = selected_wrap
+      #         inline = TRUE
+    )
+  ),
+  wellPanel(
+    style = control_style,
+    checkboxInput('dencity', 'Dencity plot'),
+    selectInput(
+      "dencity_factor",
+      "Dencity for",
+      factor_names,
+      selected = selected_dencity
+      #         inline = TRUE
+    )
+  ),
+  wellPanel(
+    style = control_style,
+    sliderInput('alpha_slider', 'Aplha', 0, 1, 1, step = 0.01)
   ),
   conditionalPanel(
     condition = 'input.plot_type == "sp"',
