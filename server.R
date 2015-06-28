@@ -9,6 +9,8 @@ library(ggvis)
 library(sqldf)
 
 pageLength <- 10
+last_cols <- c(-1)
+last_aggr <<- 'adsf'
 
 
 shinyServer(function(input, output, session) {
@@ -17,6 +19,7 @@ shinyServer(function(input, output, session) {
     input$file1
     input$plot_aggr
     input$agg_function
+    input$aggregate
     ui_ready <<- FALSE
     if (!input$plot_aggr) {
       updated_data <<- data
@@ -26,48 +29,65 @@ shinyServer(function(input, output, session) {
         updated_data <<- tmp
       }
     }
-    
-    if (input$aggregate) {
 
-
-      updated_data <<- na.omit(aggr_data())
-      # browser()
-
-      over <- paste(sapply(input$color, function(x) {paste(input$agg_function, '(', x, ') ', input$agg_function, '_', x, sep = '')}), collapse = ', ')
+    isolate({
+    if (input$aggregate && !grepl(input$agg_function, input$x)) {
+      browser()
+      # && !grepl(last_aggr, input$x)
+      updated_data <<- na.omit(data)
+      over <- paste(
+        sapply(
+          input$x, function(x) {
+            paste(
+              input$agg_function, '(', x, ') ', input$agg_function, '_', x, sep = '')
+            }),
+        collapse = ', ')
       by <- paste(input$color, collapse=', ')
       query <- paste('select', by, ', ', over, 'from updated_data group by', by)
       tmp <- sqldf(query)
-      if (!invalid(tmp)) {
-        updated_data <<- tmp
-      }
-      
-      
+      updated_data <<- tmp
+      last_aggr <<- input$x
     }
-    cols <<- c(colnames(updated_data))
-    factor_names <<- c()
-    number_names <<- c()
-    for (col in cols) {
-      if (is.factor(updated_data[[col]]))
-      {
-        factor_names <<- c(factor_names, col)
-      } else if (is.character(updated_data[[col]])) {
-        factor_names <<- c(factor_names, col)
-        updated_data[[col]] <<- ordered(updated_data[[col]])
+    })
+    # if (!identical(cols, c(colnames(updated_data)))) {
+      cols <<- c(colnames(updated_data))
+      factor_names <<- c()
+      number_names <<- c()
+      for (col in cols) {
+        if (is.factor(updated_data[[col]]))
+        {
+          factor_names <<- c(factor_names, col)
+        } else if (is.character(updated_data[[col]])) {
+          factor_names <<- c(factor_names, col)
+          updated_data[[col]] <<- ordered(updated_data[[col]])
+        } else {
+          number_names <<- c(number_names, col)
+        }
+      }
+      selected_x <<- number_names[1]
+      selected_y <<- number_names[2]
+      if (invalid(selected_y) || !(selected_y %in% colnames(updated_data))) {
+        selected_y <<- number_names[1]
+      }
+      if (!input$aggregate) {
+        ax <- append(number_names, factor_names)
+        ay <- ax
       } else {
-        number_names <<- c(number_names, col)
+        ax <- number_names
+        ay <- number_names
       }
-    }
-    selected_x <<- number_names[1]
-    selected_y <<- number_names[2]
-    ax = append(number_names, factor_names)
-    updateRadioButtons(session, 'x', choices = ax, selected = number_names[1], inline = TRUE)
-    updateRadioButtons(session, 'y', choices = ax, selected = number_names[2], inline = TRUE)
-    updateSelectInput(session, 'facet', choices = c(factor_names, '.'))
-    updateSelectInput(session, 'facet2', choices = c(factor_names, '.'))
-    updateSelectInput(session, 'color', choices = factor_names)
-    updateSelectInput(session, 'wrap', choices = factor_names)
-    updateSelectInput(session, 'shape', choices = factor_names)
-    updateSelectInput(session, 'dencity_factor', choices = factor_names)
+      # if (!identical(last_cols, ax)) {
+        updateRadioButtons(session, 'x', choices = ax, selected = selected_x, inline = TRUE)
+        updateRadioButtons(session, 'y', choices = ay, selected = selected_y, inline = TRUE)
+        updateSelectInput(session, 'facet', choices = c(factor_names, '.'))
+        updateSelectInput(session, 'facet2', choices = c(factor_names, '.'))
+        updateSelectInput(session, 'color', choices = factor_names)
+        updateSelectInput(session, 'wrap', choices = factor_names)
+        updateSelectInput(session, 'shape', choices = factor_names)
+        updateSelectInput(session, 'dencity_factor', choices = factor_names)
+      # }
+      last_cols <- number_names
+    # }
     ui_ready <<- TRUE
   })
   
@@ -92,11 +112,15 @@ shinyServer(function(input, output, session) {
   })
   
   observe({
-    browser()
+    # browser()
     input$input_data
     input$file1
     ready_to_plot <<- FALSE
-    update_data()
+    # input$aggregate
+    # input$agg_function
+    if (!input$aggregate) {
+      update_data()
+    }
     update_ui()
     if (ui_ready) {
       ui_ready <<- FALSE
@@ -117,7 +141,6 @@ shinyServer(function(input, output, session) {
       } else {
         step_range <- diff(x_range) / 100
       }
-#       browser()
       updateSliderInput(session, 'x_range', min = x_range[1], max = x_range[2], step = step_range, value = c(x_range[1], x_range[2]))
       ui_ready <<- TRUE
       ready_to_plot <<- TRUE
@@ -156,16 +179,19 @@ shinyServer(function(input, output, session) {
   
   
   input_data <- reactive({
+    browser()
     input$file1
     lims <- input$x_range
     res <- data.frame(c())
+    # input$aggregate
+    input$agg_function
     isolate({
       x <- input$x
       if (!invalid(x)) {
-        x_min <- data[x] >= lims[1]
-        x_max <- data[x] <= lims[2]
+        x_min <- updated_data[x] >= lims[1]
+        x_max <- updated_data[x] <= lims[2]
         slice <- x_min&x_max
-        res <- data[slice,]
+        res <- updated_data[slice,]
       }
     })
     return(res)
@@ -230,6 +256,8 @@ shinyServer(function(input, output, session) {
     input$file1
     input$alpha_slider
     input$smooth
+    # input$aggregate
+    input$agg_function
     x <- input$x
     y <- input$y
     d <- updated_data
